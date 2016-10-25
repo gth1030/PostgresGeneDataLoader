@@ -1,0 +1,6 @@
+# Contains all compiled classes
+target
+src/test
+
+# IntelliJ cache
+.idea
