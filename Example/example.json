@@ -1,0 +1,44 @@
+{
+    "INDEX": "0", 
+    "BASENAME": "", 
+    "ANALYSIS": {
+        "DATAURL": "", 
+        "ALGORITHM": "", 
+        "NOTES": "", 
+        "PROGRAM": [
+            "", 
+            ""
+        ], 
+        "UPLOADER": "KITAE KIM", 
+        "DBXREF": [
+            "doi:10", 
+            "PMID:10"
+        ], 
+        "DOWNLOAD_DATE": "2016-05-26", 
+        "SOURCEPART": "", 
+        "SOURCE": "doi:10", 
+        "CVPROPERTY": {
+            "quality": {
+                "cvterm": "db:xref"
+            }, 
+            "EFO": {
+                "cvterm": "db:xref"
+            }
+        }, 
+        "TYPE": "type"
+    }, 
+    "SRCFEATURE": {
+        "dataSourceMappingValue": "db:xref"
+    }, 
+    "BEDFILE": "bedfile name", 
+    "TYPE": {
+        "dataSourceMappingValue": "db:xref"
+    }, 
+    "COLUMNS": {
+        "START": "1", 
+        "SRCFEATURE": "0", 
+        "END": "2", 
+        "TYPE": "3"
+    }
+}
+
