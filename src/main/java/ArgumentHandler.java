@@ -34,8 +34,8 @@ public class ArgumentHandler {
         List<String> listOfJason = null;
         try {
             Namespace nameSpace = argpharser.parseArgs(args);
-            BedFileConvertor.getInstance().isCommitTrue = nameSpace.get("commit");
-            BedFileConvertor.getInstance().isVerbose = nameSpace.get("verbose");
+            BedFileConvertor.isCommitTrue = nameSpace.get("commit");
+            BedFileConvertor.isVerbose = nameSpace.get("verbose");
             listOfJason = nameSpace.get("fileNames");
         } catch (ArgumentParserException e) {
             argpharser.handleError(e);

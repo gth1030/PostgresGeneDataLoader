@@ -379,7 +379,7 @@ class JsonFileSanityCheck {
      * @param version dbxref.version
      * @return key of type or sourceFeature value. Null for cvproperty.
      */
-    static String getMatchingKey(Map<String, String> map, String db, String accession, String version) {
+    private static String getMatchingKey(Map<String, String> map, String db, String accession, String version) {
         for (String mapKey : map.keySet()) {
             DbAccessionVersion srcfTupl = BedFileConvertor.makeDbAccessionVersion(map.get(mapKey));
             if (srcfTupl.equals(new DbAccessionVersion(db, accession, version))) {

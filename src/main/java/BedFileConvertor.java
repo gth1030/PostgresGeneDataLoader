@@ -56,7 +56,7 @@ public class BedFileConvertor {
                     for (String bedfilePath : jtupl.bedFile) {
                         initializeJsonFile(jtupl);
                         if (!jtupl.isTypeCondensible) {
-                            readBedFileWriteQueue(getInstance(), jtupl, new File(bedFileFolder + "/" + bedfilePath));
+                            readBedFileWriteQueue(jtupl, new File(bedFileFolder + "/" + bedfilePath));
                         } else {
                             readBedFileWirteQueueForCondensed(getInstance(), jtupl, new File(bedFileFolder + "/" + bedfilePath));
                         }
@@ -65,7 +65,7 @@ public class BedFileConvertor {
                             System.out.println("dbxref to cvterm map is " + dbxrefToCvtermMap);
                             System.out.println("newly generated features are " + featureQue);
                         }
-                        PostgresDataUploader.performFileUpload(getInstance(), connection, jtupl);
+                        PostgresDataUploader.performFileUpload(connection, jtupl);
                         PostgresDataUploader.handleCommitRollback(connection, isCommitTrue);
                     }
                 } catch (TransactionFailedException e){
@@ -96,7 +96,7 @@ public class BedFileConvertor {
      * created.
      * @param file path of bedfile to be read.
      */
-    private static void readBedFileWriteQueue(BedFileConvertor bedconvertor, JsonTuple jtupl, File file) {
+    private static void readBedFileWriteQueue(JsonTuple jtupl, File file) {
         BufferedReader br = null;
         file = new File(JsonTuple.checkForGZedFileForUnzip(file.getPath()));
         try {
@@ -107,9 +107,9 @@ public class BedFileConvertor {
             while ((line = br.readLine()) != null) {
                 String[] tokens = line.split("\t");
                 checkIfTypeAndSrcfeatureExist(tokens, jtupl, corruptedType, corruptedSrcfeature);
-                FeatureTuple feature = new FeatureTuple(tokens, bedconvertor, jtupl);
+                FeatureTuple feature = new FeatureTuple(tokens, jtupl);
                 featureQue.add(feature);
-                featureLocQue.add(new FeatureLocTuple(tokens, 0, bedconvertor, jtupl, feature));
+                featureLocQue.add(new FeatureLocTuple(tokens, 0, jtupl, feature));
             }
             if (corruptedType.size() != 0 || corruptedSrcfeature.size() != 0) {
                 throw new IllegalArgumentException("There are unrecognized type and/or sourcefeature." +
@@ -138,7 +138,7 @@ public class BedFileConvertor {
             Set<String> corruptedType = new HashSet<String>();
             Set<String> corruptedSrcfeature = new HashSet<String>();
             for (String key : jtupl.type.keySet()) {
-                featureQue.add(new FeatureTuple(jtupl, dbxrefToCvtermMap.get(key), key));
+                featureQue.add(new FeatureTuple(jtupl, dbxrefToCvtermMap.get(key)));
             }
             Map<String, Integer> rankCounter = new HashMap<String, Integer> ();
             while ((line = br.readLine()) != null) {
@@ -149,7 +149,7 @@ public class BedFileConvertor {
                         dbxrefToFeatureOrganismMap.get(tokens[jtupl.getSrcFeatureIndex()]).organism_id // <- organism_id of the srcfeature
                 );
                 featureLocQue.add(new FeatureLocTuple(tokens, FeatureLocTuple.getRank(rankCounter, jtupl, tokens),
-                        bedconvertor, jtupl, tempFeature));
+                        jtupl, tempFeature));
             }
             FeatureTuple.filterUnusedFeature_Condensed(featureQue);
             if (corruptedType.size() != 0 || corruptedSrcfeature.size() != 0) {
@@ -177,7 +177,7 @@ public class BedFileConvertor {
                 return featureTuple;
             }
         }
-        FeatureTuple newTuple = new FeatureTuple(jtupl, dbxrefToCvtermMap.get(type_idKey), type_idKey);
+        FeatureTuple newTuple = new FeatureTuple(jtupl, dbxrefToCvtermMap.get(type_idKey));
         featureQue.add(newTuple);
         newTuple.organism_id = organism_id;
         return newTuple;

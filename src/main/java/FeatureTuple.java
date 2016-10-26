@@ -5,17 +5,13 @@ import java.util.Queue;
  */
 public class FeatureTuple extends TupleInterface {
 
-    protected FeatureTuple(String[] token, BedFileConvertor bedconvertor, JsonTuple jtupl) {
+    protected FeatureTuple(String[] token, JsonTuple jtupl) {
         int index = Integer.parseInt(jtupl.index);
         int start = Integer.parseInt(jtupl.columns.get("START")) - index; // Correct start based on index
         int end = Integer.parseInt(jtupl.columns.get("END"));
         seqlen = Integer.toString(Integer.parseInt(token[end]) - Integer.parseInt(token[start]));
-        if (jtupl.columns.containsKey("TYPE")) {
-            type_id = bedconvertor.dbxrefToCvtermMap.get(token[Integer.parseInt(jtupl.columns.get("TYPE"))]);
-        } else {
-            type_id = bedconvertor.dbxrefToCvtermMap.get(jtupl.type.get(jtupl.type.keySet().toArray()[0]));
-        }
-        organism_id = bedconvertor.dbxrefToFeatureOrganismMap.get(token[Integer.parseInt(jtupl.columns.get("SRCFEATURE"))]).organism_id;
+        type_id = BedFileConvertor.dbxrefToCvtermMap.get(jtupl.getTypeID(token));
+        organism_id = BedFileConvertor.dbxrefToFeatureOrganismMap.get(token[jtupl.getSrcFeatureIndex()]).organism_id;
         uniquename = jtupl.generateName(type_id);
         if (jtupl.columns.containsKey("RAWSCORE")) {
             rawscore = jtupl.columns.get("RAWSCORE");
@@ -38,7 +34,7 @@ public class FeatureTuple extends TupleInterface {
     }
 
     /** Constructor for condensed type jsonfile. */
-    FeatureTuple(JsonTuple jtupl, String type_idI, String type_val) {
+    FeatureTuple(JsonTuple jtupl, String type_idI) {
         seqlen = "";
         uniquename = jtupl.generateName(type_idI);
         type_id = type_idI;
@@ -90,19 +86,19 @@ public class FeatureTuple extends TupleInterface {
 
 
     /* Columns for feature table */
-    protected String feature_id;
-    protected String seqlen;
-    protected String uniquename;
-    protected String type_id;
-    protected String organism_id;
-    protected String is_analysis;
-    protected String rawscore;
-    protected String normscore;
-    protected String significance;
-    protected String identity;
-    protected String percentile;
-    protected String rank;
-    protected String error;
-    protected String error2;
+    String feature_id;
+    String seqlen;
+    String uniquename;
+    String type_id;
+    String organism_id;
+    String is_analysis;
+    String rawscore;
+    String normscore;
+    String significance;
+    String identity;
+    String percentile;
+    String rank;
+    String error;
+    String error2;
 
 }

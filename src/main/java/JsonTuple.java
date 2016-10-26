@@ -40,7 +40,7 @@ public class JsonTuple {
     }
 
     /** performs overall format sanity check for json file. **/
-    static void checkJsonFileValuePresence(JsonTuple jtupl) {
+    private static void checkJsonFileValuePresence(JsonTuple jtupl) {
         //Column check
         if (jtupl.columns == null) {
             throw new IllegalArgumentException("COLUMNS must exist in json file.");
@@ -181,7 +181,7 @@ public class JsonTuple {
                 }
                 try {
                     temp = temp.getAsJsonObject("CVPROPERTY");
-                } catch (NullPointerException e) {
+                } catch (NullPointerException ignored) {
                 }
                 if (temp != null) {
                     jTuple.analysis.cvprop = jTuple.analysis.new nestedProp();

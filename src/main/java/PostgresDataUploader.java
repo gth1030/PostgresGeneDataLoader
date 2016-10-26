@@ -18,15 +18,16 @@ public class PostgresDataUploader {
 
     /**
      * Update postgres with data.
-     * @param bedconvertor BedFileConvertor object
      * @param connection connection to postgres
      * @param jtupl json file object with information
      */
-    public static void performFileUpload(BedFileConvertor bedconvertor, Connection connection, JsonTuple jtupl) throws TransactionFailedException {
-        Queue<String> featureIDs = assignFeatureID(bedconvertor, connection);
-        Queue<FeatureTuple> tempFeatureTuples = new PriorityQueue<FeatureTuple>(bedconvertor.featureQue);
-        Reader featureReader = createReaderForDataUpload(bedconvertor.featureQue, featureColumns, new Boolean[] {false, false, true, false, false, false});
-        Reader featurelocReader = createReaderForDataUpload(bedconvertor.featureLocQue, featurelocColumns, new Boolean[] {false, false, false, false, false, false});
+    public static void performFileUpload(Connection connection, JsonTuple jtupl) throws TransactionFailedException {
+        Queue<String> featureIDs = assignFeatureID(connection);
+        Queue<FeatureTuple> tempFeatureTuples = new PriorityQueue<FeatureTuple>(BedFileConvertor.featureQue);
+        Reader featureReader = createReaderForDataUpload(BedFileConvertor.featureQue, featureColumns,
+                new Boolean[] {false, false, true, false, false, false});
+        Reader featurelocReader = createReaderForDataUpload(BedFileConvertor.featureLocQue,
+                featurelocColumns, new Boolean[] {false, false, false, false, false, false});
         writeOnDatabaseFromMemory(featureTableName, featureColumns, featureReader, connection);
         writeOnDatabaseFromMemory(featurelocTableName, featurelocColumns, featurelocReader, connection);
         if (jtupl.analysis != null) {
@@ -34,15 +35,15 @@ public class PostgresDataUploader {
             Reader analysisFeatureReader = generateAnalysisFeatureReader(jtupl, analysisID, analysisFeatureColumn, tempFeatureTuples);
             insertToDatabase(analysisFeatureReader, connection, analysisFeatureQuery[1], analysisFeatureQuery[0]);
             if (jtupl.analysis.property != null) {
-                Reader analysisPropReader = generateAnalysisPropReader(jtupl, bedconvertor.cvnameTocvID, analysisID);
+                Reader analysisPropReader = generateAnalysisPropReader(jtupl, BedFileConvertor.cvnameTocvID, analysisID);
                 insertToDatabase(analysisPropReader, connection, analysisPropQuery[1], analysisPropQuery[0]);
             }
             if (jtupl.analysis.cvprop != null) {
-                Reader analysisCVPropReader = generateAnalysisCVPropReader(jtupl, bedconvertor, analysisID);
+                Reader analysisCVPropReader = generateAnalysisCVPropReader(jtupl, analysisID);
                 insertToDatabase(analysisCVPropReader, connection, analysisCvPropQuery[1], analysisCvPropQuery[0]);
             }
             if (jtupl.analysis.dbxref != null) {
-                Reader analysisDbxrefReader = generateAnalysisDbxrefReader(jtupl, analysisID, bedconvertor.dbxrefToDb_idMap);
+                Reader analysisDbxrefReader = generateAnalysisDbxrefReader(jtupl, analysisID, BedFileConvertor.dbxrefToDb_idMap);
                 insertToDatabase(analysisDbxrefReader, connection, analysis_DBxrefQuery[1], analysis_DBxrefQuery[0]);
             }
         }
@@ -50,18 +51,17 @@ public class PostgresDataUploader {
 
     /**
      * Assigns feature id to each feature tuples.
-     * @param bedconvertor BedFileConvertor object for feature que list
      * @param connection connection to postgres
      * @return list of feature_ids generated
      */
-    static Queue<String> assignFeatureID(BedFileConvertor bedconvertor, Connection connection) throws TransactionFailedException {
-        Queue<String> featureIDs = requestFeatureIds(bedconvertor.featureQue.size(), connection);
+    private static Queue<String> assignFeatureID(Connection connection) throws TransactionFailedException {
+        Queue<String> featureIDs = requestFeatureIds(BedFileConvertor.featureQue.size(), connection);
         Queue<String> returnedFeatureID = new ArrayDeque<String>();
         while (!featureIDs.isEmpty()) {
             String newFeatureId = featureIDs.poll();
-            FeatureTuple featureTuple = bedconvertor.featureQue.poll();
+            FeatureTuple featureTuple = BedFileConvertor.featureQue.poll();
             featureTuple.feature_id = newFeatureId;
-            bedconvertor.featureQue.add(featureTuple);
+            BedFileConvertor.featureQue.add(featureTuple);
             returnedFeatureID.add(newFeatureId);
         }
         return returnedFeatureID;
@@ -74,7 +74,7 @@ public class PostgresDataUploader {
      * @param isString specify if each column is string column or not
      * @return reader with feature or featureloc information
      */
-    static Reader createReaderForDataUpload(Queue<? extends  TupleInterface> que, String[] columnNames, Boolean[] isString) {
+    private static Reader createReaderForDataUpload(Queue<? extends TupleInterface> que, String[] columnNames, Boolean[] isString) {
         StringBuilder sb = new StringBuilder();
         TupleInterface line = null;
         while ((line = que.poll()) != null) {
@@ -125,7 +125,7 @@ public class PostgresDataUploader {
      * @param connection connection to postgres
      * @return Queue that contains a list of new feature ids
      */
-    static Queue<String> requestFeatureIds(int numOfFeatureIDs, Connection connection) throws TransactionFailedException {
+    private static Queue<String> requestFeatureIds(int numOfFeatureIDs, Connection connection) throws TransactionFailedException {
         Queue<String> listOfFeatureNum = null;
         try {
             PreparedStatement prestatement = connection.prepareStatement(
@@ -150,7 +150,7 @@ public class PostgresDataUploader {
      * @param connection connection to Postgres
      * @return analysis_id assigned by postgres
      */
-    static String insertAnalysisToDatabase(JsonTuple jtupl, Connection connection) throws TransactionFailedException {
+    private static String insertAnalysisToDatabase(JsonTuple jtupl, Connection connection) throws TransactionFailedException {
         String timeExecuted = "";
         String timeExecutedValue = "";
         if (jtupl.analysis.download_date != null) {
@@ -192,7 +192,7 @@ public class PostgresDataUploader {
      * @param analysisID analysis_id
      * @return reader with analysisprop information
      */
-    static Reader generateAnalysisPropReader(JsonTuple jtupl, Map<DbCvname, String> cvNameToIDmap, String analysisID) {
+    private static Reader generateAnalysisPropReader(JsonTuple jtupl, Map<DbCvname, String> cvNameToIDmap, String analysisID) {
         StringBuilder sb = new StringBuilder();
         for (String key : jtupl.analysis.property.experimentMap.keySet()) {
             JsonTuple.Analysis.Experiment experiment = jtupl.analysis.property.experimentMap.get(key);
@@ -204,7 +204,8 @@ public class PostgresDataUploader {
                     String[] tuple = new String[]{analysisID, cvNameToIDmap.get(new DbCvname(key, tupleMapKey)),
                             value, Integer.toString(jtupl.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)))};
                     writeTuple(sb, tuple, new Boolean[]{false, false, true, false});
-                    jtupl.analysispropRankCounter.put(new DbCvname(key, tupleMapKey), jtupl.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)) + 1);
+                    jtupl.analysispropRankCounter.put(new DbCvname(key, tupleMapKey),
+                            jtupl.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)) + 1);
                 }
             }
         }
@@ -215,11 +216,10 @@ public class PostgresDataUploader {
     /**
      * generate reader for cvprop insertion for postgres.
      * @param jtupl tuple with cvprop information
-     * @param bedconvertor BedFileConvertor object pointer for cvnameToId map and dbxrefToCvtermMap
      * @param analysisID analysis_id
      * @return reader with cvprop information
      */
-    static Reader generateAnalysisCVPropReader(JsonTuple jtupl, BedFileConvertor bedconvertor, String analysisID) {
+    private static Reader generateAnalysisCVPropReader(JsonTuple jtupl, String analysisID) {
         StringBuilder sb = new StringBuilder();
         for (String key : jtupl.analysis.cvprop.experimentMap.keySet()) {
             JsonTuple.Analysis.Experiment experiment = jtupl.analysis.cvprop.experimentMap.get(key);
@@ -228,10 +228,13 @@ public class PostgresDataUploader {
                     if (!jtupl.analysiscvPropRankCounter.containsKey(new DbCvname(key, tupleMapKey))) {
                         jtupl.analysiscvPropRankCounter.put(new DbCvname(key, tupleMapKey), 0);
                     }
-                    String[] tuple = new String[]{analysisID, bedconvertor.cvnameTocvID.get(new DbCvname(key, tupleMapKey)),
-                            bedconvertor.dbxrefToCvtermMap.get(value.trim()), Integer.toString(jtupl.analysiscvPropRankCounter.get(new DbCvname(key, tupleMapKey)))};
+                    String[] tuple = new String[]{analysisID,
+                            BedFileConvertor.cvnameTocvID.get(new DbCvname(key, tupleMapKey)),
+                            BedFileConvertor.dbxrefToCvtermMap.get(value.trim()),
+                            Integer.toString(jtupl.analysiscvPropRankCounter.get(new DbCvname(key, tupleMapKey)))};
                     writeTuple(sb, tuple, new Boolean[]{false, false, true, false});
-                    jtupl.analysiscvPropRankCounter.put(new DbCvname(key, tupleMapKey), jtupl.analysiscvPropRankCounter.get(new DbCvname(key, tupleMapKey)) + 1);
+                    jtupl.analysiscvPropRankCounter.put(new DbCvname(key, tupleMapKey),
+                            jtupl.analysiscvPropRankCounter.get(new DbCvname(key, tupleMapKey)) + 1);
                 }
             }
         }
@@ -247,7 +250,7 @@ public class PostgresDataUploader {
      * @param featureIDs List of FeatureIDs
      * @return reader with analysisfeature information
      */
-    static Reader generateAnalysisFeatureReader(JsonTuple jtupl, String analysisID, String[] columnList, Queue<FeatureTuple> featureIDs) {
+    private static Reader generateAnalysisFeatureReader(JsonTuple jtupl, String analysisID, String[] columnList, Queue<FeatureTuple> featureIDs) {
         StringBuilder sb = new StringBuilder();
         for (FeatureTuple feature : featureIDs) {
             String[] tuple = new String[8];
@@ -270,7 +273,7 @@ public class PostgresDataUploader {
      * @param query operation query for postgres
      * @param tableName name of table for error output
      */
-    static void insertToDatabase(Reader reader, Connection connection, String query, String tableName) throws TransactionFailedException {
+    private static void insertToDatabase(Reader reader, Connection connection, String query, String tableName) throws TransactionFailedException {
         try {
             CopyManager copyManager = new CopyManager((BaseConnection) connection);
             copyManager.copyIn(query, reader);
@@ -291,7 +294,7 @@ public class PostgresDataUploader {
      * @param dbxrefToDbId maps dbxref to db_id
      * @return reader with analysis_Dbxref information
      */
-    static Reader generateAnalysisDbxrefReader(JsonTuple jtupl, String analysisID, Map<DbAccessionVersion, String> dbxrefToDbId) {
+    private static Reader generateAnalysisDbxrefReader(JsonTuple jtupl, String analysisID, Map<DbAccessionVersion, String> dbxrefToDbId) {
         StringBuilder sb = new StringBuilder();
         for (String tuple : jtupl.analysis.dbxref) {
             String[] tokens = new String[2];
@@ -328,7 +331,7 @@ public class PostgresDataUploader {
         sb.append("\n");
     }
 
-    public static void handleCommitRollback(Connection connection, Boolean isCommitTrue) throws TransactionFailedException {
+    static void handleCommitRollback(Connection connection, Boolean isCommitTrue) throws TransactionFailedException {
         if (isCommitTrue) {
             try {
                 PreparedStatement transactionRollback = connection.prepareStatement("COMMIT;");
