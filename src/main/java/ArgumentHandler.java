@@ -27,8 +27,12 @@ public class ArgumentHandler {
     static List<String> parseArguments(String[] args) {
         ArgumentParser argpharser = ArgumentParsers.newArgumentParser("jsonreader").
                 description("Read arguments to receive commands and file names.");
-        argpharser.addArgument("-c", "--commit").action(Arguments.storeTrue());
-        argpharser.addArgument("-v", "--verbose").action(Arguments.storeTrue());
+        argpharser.addArgument("-c", "--commit").action(Arguments.storeTrue()).
+                help("Commit to database when this is on. Without commit on, program will mock commit.");
+        argpharser.addArgument("-v", "--verbose").action(Arguments.storeTrue()).
+                help("Print out more detailed message for user.");
+        argpharser.addArgument("-f", "--force").action(Arguments.storeTrue()).
+        help("Force loader to proceed with unrecognized data tuples, and just ignore tuples with an errors.");
         argpharser.addArgument("fileNames").type(String.class).nargs("+")
                 .help("list of json file names to phase through");
         List<String> listOfJason = null;
@@ -36,6 +40,7 @@ public class ArgumentHandler {
             Namespace nameSpace = argpharser.parseArgs(args);
             BedFileConvertor.isCommitTrue = nameSpace.get("commit");
             BedFileConvertor.isVerbose = nameSpace.get("verbose");
+            BedFileConvertor.isForceCommit = nameSpace.get("force");
             listOfJason = nameSpace.get("fileNames");
         } catch (ArgumentParserException e) {
             argpharser.handleError(e);

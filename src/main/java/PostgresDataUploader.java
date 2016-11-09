@@ -23,11 +23,11 @@ public class PostgresDataUploader {
      */
     public static void performFileUpload(Connection connection, JsonTuple jtupl) throws TransactionFailedException {
         Queue<String> featureIDs = assignFeatureID(connection);
-        Queue<FeatureTuple> tempFeatureTuples = new PriorityQueue<FeatureTuple>(BedFileConvertor.featureQue);
+        Queue<FeatureTuple> tempFeatureTuples = new ArrayDeque<FeatureTuple>(BedFileConvertor.featureQue);
         Reader featureReader = createReaderForDataUpload(BedFileConvertor.featureQue, featureColumns,
                 new Boolean[] {false, false, true, false, false, false});
         Reader featurelocReader = createReaderForDataUpload(BedFileConvertor.featureLocQue,
-                featurelocColumns, new Boolean[] {false, false, false, false, false, false});
+                featurelocColumns, new Boolean[] {false, false, false, false, false, false, false, false});
         writeOnDatabaseFromMemory(featureTableName, featureColumns, featureReader, connection);
         writeOnDatabaseFromMemory(featurelocTableName, featurelocColumns, featurelocReader, connection);
         if (jtupl.analysis != null) {
@@ -187,25 +187,25 @@ public class PostgresDataUploader {
 
     /**
      * Generate reader for analysisprop
-     * @param jtupl tuple with information
+     * @param jTuple tuple with information
      * @param cvNameToIDmap maps cvname to CvName
      * @param analysisID analysis_id
      * @return reader with analysisprop information
      */
-    private static Reader generateAnalysisPropReader(JsonTuple jtupl, Map<DbCvname, String> cvNameToIDmap, String analysisID) {
+    private static Reader generateAnalysisPropReader(JsonTuple jTuple, Map<DbCvname, String> cvNameToIDmap, String analysisID) {
         StringBuilder sb = new StringBuilder();
-        for (String key : jtupl.analysis.property.experimentMap.keySet()) {
-            JsonTuple.Analysis.Experiment experiment = jtupl.analysis.property.experimentMap.get(key);
+        for (String key : jTuple.analysis.property.experimentMap.keySet()) {
+            JsonTuple.Analysis.Experiment experiment = jTuple.analysis.property.experimentMap.get(key);
             for (String tupleMapKey : experiment.tupleMap.keySet()) {
                 for (String value : experiment.tupleMap.get(tupleMapKey)) {
-                    if (!jtupl.analysispropRankCounter.containsKey(new DbCvname(key, tupleMapKey))) {
-                        jtupl.analysispropRankCounter.put(new DbCvname(key, tupleMapKey), 0);
+                    if (!jTuple.analysispropRankCounter.containsKey(new DbCvname(key, tupleMapKey))) {
+                        jTuple.analysispropRankCounter.put(new DbCvname(key, tupleMapKey), 0);
                     }
                     String[] tuple = new String[]{analysisID, cvNameToIDmap.get(new DbCvname(key, tupleMapKey)),
-                            value, Integer.toString(jtupl.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)))};
+                            value, Integer.toString(jTuple.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)))};
                     writeTuple(sb, tuple, new Boolean[]{false, false, true, false});
-                    jtupl.analysispropRankCounter.put(new DbCvname(key, tupleMapKey),
-                            jtupl.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)) + 1);
+                    jTuple.analysispropRankCounter.put(new DbCvname(key, tupleMapKey),
+                            jTuple.analysispropRankCounter.get(new DbCvname(key, tupleMapKey)) + 1);
                 }
             }
         }

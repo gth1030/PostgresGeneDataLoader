@@ -5,38 +5,38 @@ import java.util.Queue;
  */
 public class FeatureTuple extends TupleInterface {
 
-    protected FeatureTuple(String[] token, JsonTuple jtupl) {
-        int index = Integer.parseInt(jtupl.index);
-        int start = Integer.parseInt(jtupl.columns.get("START")) - index; // Correct start based on index
-        int end = Integer.parseInt(jtupl.columns.get("END"));
+    protected FeatureTuple(String[] token, JsonTuple jTuple) {
+        int index = Integer.parseInt(jTuple.index);
+        int start = Integer.parseInt(jTuple.columns.get("START")) - index; // Correct start based on index
+        int end = Integer.parseInt(jTuple.columns.get("END"));
         seqlen = Integer.toString(Integer.parseInt(token[end]) - Integer.parseInt(token[start]));
-        type_id = BedFileConvertor.dbxrefToCvtermMap.get(jtupl.getTypeID(token));
-        organism_id = BedFileConvertor.dbxrefToFeatureOrganismMap.get(token[jtupl.getSrcFeatureIndex()]).organism_id;
-        uniquename = jtupl.generateName(type_id);
-        if (jtupl.columns.containsKey("RAWSCORE")) {
-            rawscore = jtupl.columns.get("RAWSCORE");
-        } else if (jtupl.columns.containsKey("NORMSCORE")) {
-            normscore = jtupl.columns.get("NORMSCORE");
-        } else if (jtupl.columns.containsKey("SIGNIFICANCE")) {
-            significance = jtupl.columns.get("SIGNIFICANCE");
-        } else if (jtupl.columns.containsKey("IDENTITY")) {
-            identity = jtupl.columns.get("IDENTITY");
-        } else if (jtupl.columns.containsKey("PERCENTILE")) {
-            percentile = jtupl.columns.get("PERCENTILE");
-        } else if (jtupl.columns.containsKey("RANK")) {
-            rank = jtupl.columns.get("RANK");
-        } else if (jtupl.columns.containsKey("ERROR")) {
-            error = jtupl.columns.get("ERROR");
-        } else if (jtupl.columns.containsKey("ERROR2")) {
-            error2 = jtupl.columns.get("ERROR2");
+        type_id = BedFileConvertor.dbxrefToCvtermMap.get(jTuple.getTypeID(token));
+        organism_id = BedFileConvertor.dbxrefToFeatureOrganismMap.get(token[jTuple.getSrcFeatureIndex()]).organism_id;
+        uniquename = jTuple.generateName(type_id);
+        if (jTuple.columns.containsKey("RAWSCORE")) {
+            rawscore = jTuple.columns.get("RAWSCORE");
+        } else if (jTuple.columns.containsKey("NORMSCORE")) {
+            normscore = jTuple.columns.get("NORMSCORE");
+        } else if (jTuple.columns.containsKey("SIGNIFICANCE")) {
+            significance = jTuple.columns.get("SIGNIFICANCE");
+        } else if (jTuple.columns.containsKey("IDENTITY")) {
+            identity = jTuple.columns.get("IDENTITY");
+        } else if (jTuple.columns.containsKey("PERCENTILE")) {
+            percentile = jTuple.columns.get("PERCENTILE");
+        } else if (jTuple.columns.containsKey("RANK")) {
+            rank = jTuple.columns.get("RANK");
+        } else if (jTuple.columns.containsKey("ERROR")) {
+            error = jTuple.columns.get("ERROR");
+        } else if (jTuple.columns.containsKey("ERROR2")) {
+            error2 = jTuple.columns.get("ERROR2");
         }
         is_analysis = "true";
     }
 
     /** Constructor for condensed type jsonfile. */
-    FeatureTuple(JsonTuple jtupl, String type_idI) {
+    FeatureTuple(JsonTuple jTuple, String type_idI) {
         seqlen = "";
-        uniquename = jtupl.generateName(type_idI);
+        uniquename = jTuple.generateName(type_idI);
         type_id = type_idI;
         is_analysis = "true";
         /* organism_id is assigned later.*/

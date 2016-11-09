@@ -266,7 +266,7 @@ public class JsonTuple {
         }
         name += "_" + analysis.sourcePart;
         name += "_" + type_val;
-        name += "[" + (typeCounterForUniqueName.get(type_val) + 1) + "]";
+        name += "_[" + (typeCounterForUniqueName.get(type_val) + 1) + "]";
         typeCounterForUniqueName.put(type_val, typeCounterForUniqueName.get(type_val) + 1);
         return name;
     }

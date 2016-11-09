@@ -88,11 +88,11 @@ class JsonFileSanityCheck {
         }
         int ind = 0;
         while (ind < typeList.size()){
-            PreparedStatement preparedStatement = createPreparedStatement(ind, "cvterm", typeList, jtupl, connection);
+            PreparedStatement preparedStatement = createPreparedStatement(ind, "cvterm", typeList, connection);
             typeResultSetProcessor(jtupl, preparedStatement, dbrefTocvtermMap, corruptresult);
-            preparedStatement = createPreparedStatement(ind, "cvterm_dbxref", typeList, jtupl, connection);
+            preparedStatement = createPreparedStatement(ind, "cvterm_dbxref", typeList, connection);
             typeResultSetProcessor(jtupl, preparedStatement, dbrefTocvtermMap, corruptresult);
-            ind += 100;
+            ind += 300;
         }
         if (corruptresult.size() > 0) {
             throw new IllegalArgumentException("Some cvterm_ids are connected to more than one db mapping.\n" +
@@ -112,12 +112,14 @@ class JsonFileSanityCheck {
         return dbrefTocvtermMap;
     }
 
-    private static PreparedStatement createPreparedStatement(int ind, String tableName, List<String> keyList, JsonTuple jtupl, Connection connection) throws SQLException {
-        int roof = Math.min(keyList.size() - ind, 100);
+    private static PreparedStatement createPreparedStatement(int ind, String tableName, List<String> keyList,
+                                                             Connection connection) throws SQLException {
+        int maxQueryLength = 300;
+        int roof = Math.min(keyList.size() - ind, maxQueryLength);
         String query = typeCheckQueryBuilder(roof, tableName);
         PreparedStatement preparedState = connection.prepareStatement(query);
         for (int i = 0; i < roof; i++) {
-            DbAccessionVersion DAV = BedFileConvertor.makeDbAccessionVersion(jtupl.type.get(keyList.get(ind + i)));
+            DbAccessionVersion DAV = BedFileConvertor.makeDbAccessionVersion(keyList.get(ind + i));
             DAV.assignStrToPeparedStatement(i, preparedState);
         }
         return preparedState;
@@ -169,12 +171,15 @@ class JsonFileSanityCheck {
         StringBuilder query = new StringBuilder("SELECT cv.name as cv, cvterm.name as term, cvterm_id " +
                 "FROM cvterm JOIN cv USING(cv_id) JOIN (VALUES");
 
-        Map<String, String> propAndCvpropValMap = new HashMap<String, String>();
+        Map<String, Set<String>> propAndCvpropValMap = new HashMap<String, Set<String>>();
         if (jtupl.analysis.cvprop != null) {
             for (String key : jtupl.analysis.cvprop.experimentMap.keySet()) {
                 JsonTuple.Analysis.Experiment experiment = jtupl.analysis.cvprop.experimentMap.get(key);
                 for (String val : experiment.tupleMap.keySet()) {
-                    propAndCvpropValMap.put(key, val);
+                    if (!propAndCvpropValMap.containsKey(key)) {
+                        propAndCvpropValMap.put(key, new HashSet<String>());
+                    }
+                    propAndCvpropValMap.get(key).add(val);
                 }
             }
         }
@@ -182,22 +187,28 @@ class JsonFileSanityCheck {
             for (String key : jtupl.analysis.property.experimentMap.keySet()) {
                 JsonTuple.Analysis.Experiment experiment = jtupl.analysis.property.experimentMap.get(key);
                 for (String val : experiment.tupleMap.keySet()) {
-                    propAndCvpropValMap.put(key, val);
+                    if (!propAndCvpropValMap.containsKey(key)) {
+                        propAndCvpropValMap.put(key, new HashSet<String>());
+                    }
+                    propAndCvpropValMap.get(key).add(val);
                 }
             }
         }
-        for (int i = 0; i < propAndCvpropValMap.size(); i++) {
-            query.append("(?,?),");
+        for (Set<String> value : propAndCvpropValMap.values()) {
+            for (int i = 0; i < value.size(); i++)
+                query.append("(?,?),");
         }
         query.setLength(query.length() - 1);
         query.append(") AS temp(cv, term) ON(cv.name = temp.cv AND cvterm.name = temp.term);");
         try {
             PreparedStatement preparedState = connection.prepareStatement(query.toString());
             int insertionCount = 1;
-            for (Map.Entry<String, String> entry : propAndCvpropValMap.entrySet()) {
-                preparedState.setString(insertionCount, entry.getKey());
-                preparedState.setString(insertionCount + 1, entry.getValue());
-                insertionCount += 2;
+            for (Map.Entry<String, Set<String>> entry : propAndCvpropValMap.entrySet()) {
+                for (String value : entry.getValue()) {
+                    preparedState.setString(insertionCount, entry.getKey());
+                    preparedState.setString(insertionCount + 1, value);
+                    insertionCount += 2;
+                }
             }
             ResultSet result = preparedState.executeQuery();
             HashMap<DbCvname, String> cvTocvID = new HashMap<DbCvname, String>();
@@ -214,8 +225,13 @@ class JsonFileSanityCheck {
                 throw new IllegalArgumentException("Some cvterm_ids are connected to more than one cv&cvname entry.\n" +
                         "Erroneous data tuple includes : " + correctresult.toString());
             }
-            if (propAndCvpropValMap.size() != cvTocvID.size()) {
-                System.err.println("Detected cvterms = " + propAndCvpropValMap.keySet() + ". Mapped cvterms = " + cvTocvID.keySet());
+            if ((insertionCount - 1)/2 != cvTocvID.size()) {
+                System.err.print("Detected cvterms = [");
+                for (String key : propAndCvpropValMap.keySet()) {
+                    for (String value : propAndCvpropValMap.get(key))
+                        System.err.print(key + ":" + value + " ");
+                }
+                System.err.println("]. Mapped cvterms = " + cvTocvID.keySet());
                 throw new IllegalArgumentException("Some of the cvterms are not mapped by database.");
             }
             return cvTocvID;

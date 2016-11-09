@@ -106,15 +106,19 @@ public class BedFileConvertor {
             Set<String> corruptedSrcfeature = new HashSet<String>();
             while ((line = br.readLine()) != null) {
                 String[] tokens = line.split("\t");
-                checkIfTypeAndSrcfeatureExist(tokens, jtupl, corruptedType, corruptedSrcfeature);
-                FeatureTuple feature = new FeatureTuple(tokens, jtupl);
-                featureQue.add(feature);
-                featureLocQue.add(new FeatureLocTuple(tokens, 0, jtupl, feature));
+                if (checkIfTypeAndSrcfeatureExist(tokens, jtupl, corruptedType, corruptedSrcfeature)) {
+                    FeatureTuple feature = new FeatureTuple(tokens, jtupl);
+                    featureQue.add(feature);
+                    featureLocQue.add(new FeatureLocTuple(tokens, 0, jtupl, feature));
+                }
             }
             if (corruptedType.size() != 0 || corruptedSrcfeature.size() != 0) {
-                throw new IllegalArgumentException("There are unrecognized type and/or sourcefeature." +
+                System.err.println("There are unrecognized type and/or sourcefeature." +
                         "\nUnrecognized type is: " + corruptedType.toString() +
                         "\nUnrecognized sourceFeature is: " + corruptedSrcfeature.toString());
+                if (!isForceCommit) {
+                    throw new IllegalArgumentException();
+                }
             }
         } catch (IOException e) {
             System.err.println("IOException occured while reading file name = " + file.getName());
@@ -143,19 +147,23 @@ public class BedFileConvertor {
             Map<String, Integer> rankCounter = new HashMap<String, Integer> ();
             while ((line = br.readLine()) != null) {
                 String[] tokens = line.split("\t");
-                checkIfTypeAndSrcfeatureExist(tokens, jtupl, corruptedType, corruptedSrcfeature);
-                FeatureTuple tempFeature = getFeatureTupleAndGenerateNewIfNeeded(jtupl, bedconvertor,
-                        jtupl.getTypeID(tokens),
-                        dbxrefToFeatureOrganismMap.get(tokens[jtupl.getSrcFeatureIndex()]).organism_id // <- organism_id of the srcfeature
-                );
-                featureLocQue.add(new FeatureLocTuple(tokens, FeatureLocTuple.getRank(rankCounter, jtupl, tokens),
-                        jtupl, tempFeature));
+                if (checkIfTypeAndSrcfeatureExist(tokens, jtupl, corruptedType, corruptedSrcfeature)) {
+                    FeatureTuple tempFeature = getFeatureTupleAndGenerateNewIfNeeded(jtupl, bedconvertor,
+                            jtupl.getTypeID(tokens),
+                            dbxrefToFeatureOrganismMap.get(tokens[jtupl.getSrcFeatureIndex()]).organism_id // <- organism_id of the srcfeature
+                    );
+                    featureLocQue.add(new FeatureLocTuple(tokens, FeatureLocTuple.getRank(rankCounter, jtupl, tokens),
+                            jtupl, tempFeature));
+                }
             }
             FeatureTuple.filterUnusedFeature_Condensed(featureQue);
             if (corruptedType.size() != 0 || corruptedSrcfeature.size() != 0) {
-                throw new IllegalArgumentException("There are unrecognized type and/or sourcefeature by database." +
+                System.err.println("There are unrecognized type and/or sourcefeature." +
                         "\nUnrecognized type is: " + corruptedType.toString() +
                         "\nUnrecognized sourceFeature is: " + corruptedSrcfeature.toString());
+                if (!isForceCommit) {
+                    throw new IllegalArgumentException();
+                }
             }
         } catch (IOException e) {
             System.err.println("IOException occured while reading file name = " + file.getName());
@@ -258,17 +266,21 @@ public class BedFileConvertor {
      * @param corruptTypeRecorder container for corrupted type name
      * @param corruptSrcFeatureRecorder container for corrupted srcfeature name
      */
-    private static void checkIfTypeAndSrcfeatureExist(String[] dataTuple, JsonTuple jTuple,
+    private static boolean checkIfTypeAndSrcfeatureExist(String[] dataTuple, JsonTuple jTuple,
                                                    Set<String> corruptTypeRecorder,
                                                       Set<String> corruptSrcFeatureRecorder) {
         String type_id = jTuple.getTypeID(dataTuple);
+        boolean isSafe = true;
         if (!dbxrefToCvtermMap.containsKey(type_id)) {
             corruptTypeRecorder.add(type_id);
+            isSafe = false;
         }
         String srcfeature_key = dataTuple[jTuple.getSrcFeatureIndex()];
         if (!dbxrefToFeatureOrganismMap.containsKey(srcfeature_key)) {
             corruptSrcFeatureRecorder.add(srcfeature_key);
+            isSafe = false;
         }
+        return isSafe;
     }
 
 
@@ -329,6 +341,8 @@ public class BedFileConvertor {
     static boolean isVerbose;
     /* variable to decide if commit is needed. */
     static boolean isCommitTrue;
+    /* Variable to force program to run with unrecognized data tuples */
+    static boolean isForceCommit;
 
 
 }
