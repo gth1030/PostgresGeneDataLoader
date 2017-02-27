@@ -29,6 +29,8 @@ public class FeatureTuple extends TupleInterface {
             error = jTuple.columns.get("ERROR");
         } else if (jTuple.columns.containsKey("ERROR2")) {
             error2 = jTuple.columns.get("ERROR2");
+        } else if (jTuple.columns.containsKey("FEATURE_DBXREF")) {
+            featureDbxrefFullAcc = jTuple.columns.get("FEATURE_DBXREF");
         }
         is_analysis = "true";
     }
@@ -64,24 +66,25 @@ public class FeatureTuple extends TupleInterface {
      * @return value of specific column name for analysisFeature
      */
     public String getProperFeatureAnalysisVal(String columnName) {
+        String value = "";
         if (columnName.equals("RAWSCORE")) {
-            return rawscore;
+            value = (rawscore != null) ? rawscore : value;
         } else if (columnName.equals("NORMSCORE")) {
-            return normscore;
+            value = (normscore != null) ? normscore : value;
         } else if (columnName.equals("SIGNIFICANCE")) {
-            return significance;
+            value = (significance != null) ? significance : value;
         } else if (columnName.equals("IDENTITY")) {
-            return identity;
+            value = (identity != null) ? identity : value;
         } else if (columnName.equals("PERCENTILE")) {
-            return percentile;
+            value = (percentile != null) ? percentile : value;
         } else if (columnName.equals("RANK")) {
-            return rank;
+            value = (rank != null) ? rank : value;
         } else if (columnName.equals("ERROR")) {
-            return error;
+            value = (error != null) ? error : value;
         } else if (columnName.equals("ERROR2")) {
-            return error2;
+            value = (error2 != null) ? error2 : value;
         }
-        return null;
+        return value;
     }
 
 
@@ -100,5 +103,13 @@ public class FeatureTuple extends TupleInterface {
     String rank;
     String error;
     String error2;
+
+
+    /** if dbxref is present, featuredbxref is added. The format is dbname:dbxrefAcession[:version] (version is optional) **/
+    String featureDbxrefFullAcc;
+    /** Mapped later when dbxref is created, and used to upload feature_dbxref.**/
+    String dbxref_id;
+    /** Mapped when dbxrefis created, and used to upload feature_dbxref **/
+    String feature_dbxref_id;
 
 }

@@ -11,52 +11,61 @@ class JsonFileSanityCheck {
 
 
     /* Very simple function that creates string query for postgres execution. */
-    private static String constructQueryForDbAccessionFeatureOrganismid(JsonTuple jtupl) {
+    private static PreparedStatement constructPrestatementForFeatureOrganismid(int maxQueryLength, int ind,
+                                                                               Connection connection, List<String> srcfeatureKeyList) throws SQLException {
+        int roof = Math.min(srcfeatureKeyList.size() - ind, maxQueryLength);
         StringBuilder query = new StringBuilder("SELECT db.name AS db, dbxref.accession, dbxref.version, feature_id, organism_id " +
                 "FROM feature JOIN feature_dbxref USING(feature_id) JOIN dbxref ON (feature_dbxref.dbxref_id = dbxref.dbxref_id) JOIN db " +
                 "USING(db_id) JOIN (VALUES");
         query.append("(?,?,?)");
-        for (int i = 1; i < jtupl.srcfeature.size(); i++) {
+        for (int i = 1; i < roof; i++) {
             query.append(",(?,?,?)");
         }
         query.append(") AS temp(db,accession,version) ON (db.name = temp.db AND dbxref.accession = " +
                 "temp.accession AND dbxref.version = temp.version);");
-        return query.toString();
+        PreparedStatement preparedState = connection.prepareStatement(query.toString());
+        for (int i = 0; i < roof; i++) {
+            DbAccessionVersion DAV = BedFileConvertor.makeDbAccessionVersion(srcfeatureKeyList.get(ind + i));
+            DAV.assignStrToPeparedStatement(i, preparedState);
+        }
+
+        return preparedState;
     }
 
     /* checks if srcFeature in jsonfile is mapped in the database, and returns map that connects srcfeature and feature_id,
     and organism_id */
-    static Map<String, FeatureOrganism> generateDbxrefToFeatureOrganismMap(JsonTuple jtupl, Connection connection)
+    static Map<String, FeatureOrganism> generateDbxrefToFeatureOrganismMap(JsonTuple jTuple, Connection connection)
             throws SQLException {
-        String query1 = constructQueryForDbAccessionFeatureOrganismid(jtupl);
-        PreparedStatement preparedState = connection.prepareStatement(query1);
-        int i = 0;
-        for (String srcft : jtupl.srcfeature.keySet()) {
-            DbAccessionVersion DAV = BedFileConvertor.makeDbAccessionVersion(jtupl.srcfeature.get(srcft));
-            DAV.assignStrToPeparedStatement(i, preparedState);
-            i++;
-        }
-        ResultSet result = preparedState.executeQuery();
+        int ind = 0;
         HashMap<String, FeatureOrganism> dbxrefToFeatureOrganismMap = new HashMap<String, FeatureOrganism>();
         Set<String> corruptresult = new HashSet<String>();
-        while(result.next()) {
-            String key = getMatchingKey(jtupl.srcfeature, result.getString("db"),
-                    result.getString("accession"), result.getString("version"));
-            String featureID = result.getString("feature_id");
-            String organismID = result.getString("organism_id");
-            if (dbxrefToFeatureOrganismMap.containsKey(key) && (
-                    !dbxrefToFeatureOrganismMap.get(key).equals(featureID, organismID))) {
-                corruptresult.add(key + " - " + featureID + " - " + organismID);
+        List<String> srcfeatureKeyList = new ArrayList<String>();
+        srcfeatureKeyList.addAll(jTuple.srcfeature.values());
+        int maxQueryLength = 300;
+        while (ind < jTuple.srcfeature.size()) {
+            PreparedStatement preparedState = constructPrestatementForFeatureOrganismid(maxQueryLength, ind,
+                    connection, srcfeatureKeyList);
+            ResultSet result = preparedState.executeQuery();
+            while (result.next()) {
+                String key = getMatchingKey(jTuple.srcfeature, result.getString("db"),
+                        result.getString("accession"), result.getString("version"));
+                String featureID = result.getString("feature_id");
+                String organismID = result.getString("organism_id");
+                if (dbxrefToFeatureOrganismMap.containsKey(key) && (
+                        !dbxrefToFeatureOrganismMap.get(key).equals(featureID, organismID))) {
+                    corruptresult.add(key + " - " + featureID + " - " + organismID);
+                }
+                dbxrefToFeatureOrganismMap.put(key, new FeatureOrganism(featureID, organismID));
             }
-            dbxrefToFeatureOrganismMap.put(key, new FeatureOrganism(featureID, organismID));
+            ind += maxQueryLength;
         }
         if (corruptresult.size() > 0) {
             throw new IllegalArgumentException("More than one feature_id or organism_id are connected to one or more data entry.\n" +
                     "Erroneous data tuples: " + corruptresult.toString());
         }
-        if (jtupl.srcfeature.size() != dbxrefToFeatureOrganismMap.size()) {
+        if (jTuple.srcfeature.size() != dbxrefToFeatureOrganismMap.size()) {
             Set<String> listOfMissingFeature = new HashSet<String>();
-            for (String srcFeatureKey : jtupl.srcfeature.keySet()) {
+            for (String srcFeatureKey : jTuple.srcfeature.keySet()) {
                 if (!dbxrefToFeatureOrganismMap.containsKey(srcFeatureKey)) {
                     listOfMissingFeature.add(srcFeatureKey);
                 }
@@ -78,7 +87,7 @@ class JsonFileSanityCheck {
     static Map<String, String> generateDbxrefToCvtermMap(JsonTuple jtupl, Connection connection) throws SQLException {
         HashMap<String, String> dbrefTocvtermMap = new HashMap<String, String>();
         Set<String> corruptresult = new HashSet<String>();
-        List<String> typeList = new ArrayList<String>(jtupl.type.keySet());
+        List<String> typeList = new ArrayList<String>(jtupl.type.values());
         if (jtupl.analysis != null && jtupl.analysis.cvprop != null) {
             for (String key : jtupl.analysis.cvprop.experimentMap.keySet()) {
                 for (String expKey : jtupl.analysis.cvprop.experimentMap.get(key).tupleMap.keySet()) {
@@ -323,7 +332,6 @@ class JsonFileSanityCheck {
             checkIfDbxrefAccessionExistAndAdd(DAV, connection, newAccessions, dbnameToIDMap);
         }
     }
-
 
     /**
      * checks if particular db is present in postgres and maps dbname to db_id

@@ -23,16 +23,18 @@ public class PostgresDataUploader {
      */
     public static void performFileUpload(Connection connection, JsonTuple jtupl) throws TransactionFailedException {
         Queue<String> featureIDs = assignFeatureID(connection);
-        Queue<FeatureTuple> tempFeatureTuples = new ArrayDeque<FeatureTuple>(BedFileConvertor.featureQue);
         Reader featureReader = createReaderForDataUpload(BedFileConvertor.featureQue, featureColumns,
                 new Boolean[] {false, false, true, false, false, false});
         Reader featurelocReader = createReaderForDataUpload(BedFileConvertor.featureLocQue,
                 featurelocColumns, new Boolean[] {false, false, false, false, false, false, false, false});
         writeOnDatabaseFromMemory(featureTableName, featureColumns, featureReader, connection);
         writeOnDatabaseFromMemory(featurelocTableName, featurelocColumns, featurelocReader, connection);
+        if (jtupl.columns.containsKey("FEATURE_DBXREF")){
+            writeFeature_dbxref(BedFileConvertor.featureQue, connection);
+        }
         if (jtupl.analysis != null) {
             String analysisID = insertAnalysisToDatabase(jtupl, connection);
-            Reader analysisFeatureReader = generateAnalysisFeatureReader(jtupl, analysisID, analysisFeatureColumn, tempFeatureTuples);
+            Reader analysisFeatureReader = generateAnalysisFeatureReader(jtupl, analysisID, analysisFeatureColumn, BedFileConvertor.featureQue);
             insertToDatabase(analysisFeatureReader, connection, analysisFeatureQuery[1], analysisFeatureQuery[0]);
             if (jtupl.analysis.property != null) {
                 Reader analysisPropReader = generateAnalysisPropReader(jtupl, BedFileConvertor.cvnameTocvID, analysisID);
@@ -76,8 +78,10 @@ public class PostgresDataUploader {
      */
     private static Reader createReaderForDataUpload(Queue<? extends TupleInterface> que, String[] columnNames, Boolean[] isString) {
         StringBuilder sb = new StringBuilder();
+        Iterator<? extends TupleInterface> iterator = que.iterator();
         TupleInterface line = null;
-        while ((line = que.poll()) != null) {
+        while (iterator.hasNext()) {
+            line = iterator.next();
             List<String> stringList = new ArrayList<String>();
             for (int i = 0; i < columnNames.length; i++) {
                 stringList.add(TupleInterface.getProperValue(columnNames[i], line));
@@ -371,6 +375,109 @@ public class PostgresDataUploader {
                 }
             }
         }
+    }
+
+    public static void writeFeature_dbxref(Queue<FeatureTuple> featureQue, Connection connection) throws TransactionFailedException {
+        writeDbxref(featureQue, connection);
+        writeFeatureDbxref(featureQue, connection);
+
+    }
+
+    public static void writeFeatureDbxref(Queue<FeatureTuple> featureQue, Connection connection) throws TransactionFailedException {
+
+
+        Reader featureDbxrefReader = createReaderForDataUpload(featureQue, new String[]{"feature_dbxref_id", "feature_id", "dbxref_id"},
+                new Boolean[]{false, false, false});
+        writeOnDatabaseFromMemory("feature_dbxref", new String[]{"feature_dbxref_id", "feature_id", "dbxref_id"},
+                featureDbxrefReader, connection);
+    }
+
+    /**
+     * Checks if each dbxref value for feature is present in the database, and if not present, create one and upload to
+     * database. Also feature_dbxref_id is assigned to each feature at this stage
+     * @param featureQue queue of featureTuples that have dbxref values
+     * @param connection connection to database
+     */
+    public static void writeDbxref(Queue<FeatureTuple> featureQue, Connection connection)
+            throws TransactionFailedException {
+        Set<DbxrefTuple> dbxrefToLoadSet = new HashSet<DbxrefTuple>();
+        Map<String, String> presentDbMaps = new HashMap<String, String>();
+
+        //Used to reverseMap dbxref_id from dbxrefTuple to each feature with efficiency!
+        Map<DbxrefTuple, Set<FeatureTuple>> reversefeatureMap = new HashMap<DbxrefTuple, Set<FeatureTuple>>();
+        try {
+            PreparedStatement prestatement = connection.prepareStatement(
+                    "SELECT nextval('feature_dbxref_feature_dbxref_id_seq') FROM generate_series(1,?);");
+            prestatement.setInt(1, featureQue.size());
+            ResultSet featureDbxrefIDs = prestatement.executeQuery();
+
+            for (FeatureTuple feature : featureQue) {
+                feature.feature_dbxref_id = featureDbxrefIDs.getString(1);
+                String dbName = feature.featureDbxrefFullAcc.split(":")[0];
+                if (!presentDbMaps.containsKey(dbName)) {
+                    presentDbMaps.put(dbName, getDb_id(dbName, connection));
+                }
+                StringBuilder query = new StringBuilder();
+                query.append("Select dbxref_id from dbxref where db_id = ? and accession = ?");
+                PreparedStatement preparedStatement = connection.prepareStatement(query.toString());
+                preparedStatement.setString(1, presentDbMaps.get(dbName));
+                preparedStatement.setString(2, feature.featureDbxrefFullAcc.split(":")[1]);
+                ResultSet resultSet = preparedStatement.executeQuery();
+                while (resultSet.next()) {
+                    feature.dbxref_id = resultSet.getString("dbxref_id");
+                }
+                if (feature.dbxref_id == null || feature.dbxref_id.length() == 0) {
+                    DbxrefTuple key = new DbxrefTuple(presentDbMaps.get(dbName),
+                            feature.featureDbxrefFullAcc.split(":")[1]);
+                    dbxrefToLoadSet.add(key);
+                    if (!reversefeatureMap.containsKey(key))
+                        reversefeatureMap.put(key, new HashSet<FeatureTuple>());
+                    reversefeatureMap.get(key).add(feature);
+                }
+            }
+
+            prestatement = connection.prepareStatement(
+                    "SELECT nextval('dbxref_dbxref_id_seq') FROM generate_series(1,?);");
+            prestatement.setInt(1, dbxrefToLoadSet.size());
+            ResultSet result = prestatement.executeQuery();
+            StringBuilder sb = new StringBuilder();
+            for (DbxrefTuple dbxref : dbxrefToLoadSet) {
+                result.next();
+                dbxref.dbxref_id = result.getString(1);
+                writeTuple(sb, new String[]{dbxref.db_id, dbxref.accession, result.getString(1)},
+                        new Boolean[]{false,true,false});
+            }
+            BufferedReader dbxrefUploadReader = new BufferedReader(new StringReader(sb.toString()));
+            writeOnDatabaseFromMemory("dbxref", new String[]{"db_id", "accession", "dbxref_id"}, dbxrefUploadReader, connection);
+        } catch (SQLException e) {
+            System.err.println("SQL exception while uploading dbxref for features!");
+            e.printStackTrace();
+        }
+    }
+
+    public static String getDb_id(String dbName, Connection connection) throws TransactionFailedException {
+        String db_id = "";
+        try {
+            StringBuilder query = new StringBuilder();
+            query.append("Select db_id from db where name = ?");
+            PreparedStatement preparedStatement = connection.prepareStatement(query.toString());
+            preparedStatement.setString(1, dbName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while(resultSet.next()) {
+                if(db_id.length() != 0) {
+                    throw new TransactionFailedException("Error: more than one db is detected with db name.");
+                }
+                db_id = resultSet.getString("db_id");
+            }
+            if (db_id.length() == 0) {
+                throw new TransactionFailedException("Error: db name does not exist! db name = " +
+                        dbName);
+            }
+        } catch (SQLException e) {
+            System.err.println("SQL exception while uploading feature_dbxref and dbxref for features");
+            e.printStackTrace();
+        }
+        return db_id;
     }
 
 

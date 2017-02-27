@@ -23,6 +23,10 @@ public class TupleInterface {
                 return ((FeatureTuple) tupl).organism_id;
             } else if (value.equals("is_analysis")) {
                 return ((FeatureTuple) tupl).is_analysis;
+            } else if (value.equals("feature_dbxref_id")) {
+                return ((FeatureTuple) tupl).feature_dbxref_id;
+            } else if (value.equals("dbxref_id")) {
+                return ((FeatureTuple) tupl).dbxref_id;
             }
         } else if (tupl.getClass().equals(FeatureLocTuple.class)) {
             if (value.equals("srcfeature_id")) {

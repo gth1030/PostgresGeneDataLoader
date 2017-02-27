@@ -254,7 +254,7 @@ public class BedFileConvertor {
         if (tokens.length == 2) {
             return new DbAccessionVersion(tokens[0], tokens[1]);
         }
-        throw new IllegalArgumentException("Incorrect value is passed to makeDbAccessionVersion");
+        throw new IllegalArgumentException("Incorrect value is passed to makeDbAccessionVersion - " + str);
     }
 
 
