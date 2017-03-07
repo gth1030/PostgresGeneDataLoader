@@ -15,21 +15,29 @@ public class FeatureTuple extends TupleInterface {
         uniquename = jTuple.generateName(type_id);
         if (jTuple.columns.containsKey("RAWSCORE")) {
             rawscore = jTuple.columns.get("RAWSCORE");
-        } else if (jTuple.columns.containsKey("NORMSCORE")) {
+        }
+        if (jTuple.columns.containsKey("NORMSCORE")) {
             normscore = jTuple.columns.get("NORMSCORE");
-        } else if (jTuple.columns.containsKey("SIGNIFICANCE")) {
+        }
+        if (jTuple.columns.containsKey("SIGNIFICANCE")) {
             significance = jTuple.columns.get("SIGNIFICANCE");
-        } else if (jTuple.columns.containsKey("IDENTITY")) {
+        }
+        if (jTuple.columns.containsKey("IDENTITY")) {
             identity = jTuple.columns.get("IDENTITY");
-        } else if (jTuple.columns.containsKey("PERCENTILE")) {
+        }
+        if (jTuple.columns.containsKey("PERCENTILE")) {
             percentile = jTuple.columns.get("PERCENTILE");
-        } else if (jTuple.columns.containsKey("RANK")) {
+        }
+        if (jTuple.columns.containsKey("RANK")) {
             rank = jTuple.columns.get("RANK");
-        } else if (jTuple.columns.containsKey("ERROR")) {
+        }
+        if (jTuple.columns.containsKey("ERROR")) {
             error = jTuple.columns.get("ERROR");
-        } else if (jTuple.columns.containsKey("ERROR2")) {
+        }
+        if (jTuple.columns.containsKey("ERROR2")) {
             error2 = jTuple.columns.get("ERROR2");
-        } else if (jTuple.columns.containsKey("FEATURE_DBXREF")) {
+        }
+        if (jTuple.columns.containsKey("FEATURE_DBXREF")) {
             featureDbxrefFullAcc = jTuple.columns.get("FEATURE_DBXREF");
         }
         is_analysis = "true";
