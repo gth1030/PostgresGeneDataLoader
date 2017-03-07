@@ -69,6 +69,7 @@ public class BedFileConvertor {
                         PostgresDataUploader.handleCommitRollback(connection, isCommitTrue);
                     }
                 } catch (TransactionFailedException e){
+                    e.printStackTrace();
                     failedJsonFileList.add(jsonFile);
                 }
             }
