@@ -350,13 +350,9 @@ public class PostgresDataUploader {
                     throw new TransactionFailedException("");
                 } catch (SQLException e1) {
                     System.err.println("FATAL:Transaction rollback failed! " + e1 + "\nConnection forced to close.");
-                    try {
-                        connection.close();
-                    } catch (SQLException e2) {
-                        e2.printStackTrace();
-                    } finally {
-                        System.exit(1);
-                    }
+                    try { connection.close();
+                    } catch (SQLException e2) { e2.printStackTrace();
+                    } finally { System.exit(1); }
                 }
             }
         } else {
@@ -377,15 +373,25 @@ public class PostgresDataUploader {
         }
     }
 
+    /**
+     * Uploads dbxref and feature_dbxref values if feature_dbxref column is present in Json file.
+     * @param featureQue queue that contains all feature values with dbxref_id for each tuple
+     * @param connection connection to postgres server.
+     * @throws TransactionFailedException
+     */
     public static void writeFeature_dbxref(Queue<FeatureTuple> featureQue, Connection connection) throws TransactionFailedException {
+        System.out.println("Loading dbxref & feature_dbxref.");
         writeDbxref(featureQue, connection);
         writeFeatureDbxref(featureQue, connection);
-
     }
 
+    /**
+     * Uploads feature_dbxref values to database.
+     * @param featureQue queue that contains all feature values with dbxref_id for each tuple
+     * @param connection connection to postgres server.
+     * @throws TransactionFailedException
+     */
     public static void writeFeatureDbxref(Queue<FeatureTuple> featureQue, Connection connection) throws TransactionFailedException {
-
-
         Reader featureDbxrefReader = createReaderForDataUpload(featureQue, new String[]{"feature_dbxref_id", "feature_id", "dbxref_id"},
                 new Boolean[]{false, false, false});
         writeOnDatabaseFromMemory("feature_dbxref", new String[]{"feature_dbxref_id", "feature_id", "dbxref_id"},
@@ -410,7 +416,7 @@ public class PostgresDataUploader {
                     "SELECT nextval('feature_dbxref_feature_dbxref_id_seq') FROM generate_series(1,?);");
             prestatement.setInt(1, featureQue.size());
             ResultSet featureDbxrefIDs = prestatement.executeQuery();
-
+            featureDbxrefIDs.next();
             for (FeatureTuple feature : featureQue) {
                 feature.feature_dbxref_id = featureDbxrefIDs.getString(1);
                 String dbName = feature.featureDbxrefFullAcc.split(":")[0];
@@ -455,6 +461,13 @@ public class PostgresDataUploader {
         }
     }
 
+    /**
+     * Check if db_id is present on the database.
+     * @param dbName name of db to search from database to find db_id
+     * @param connection connection to postgres server
+     * @return db_id
+     * @throws TransactionFailedException
+     */
     public static String getDb_id(String dbName, Connection connection) throws TransactionFailedException {
         String db_id = "";
         try {
